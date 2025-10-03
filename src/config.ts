@@ -6,6 +6,9 @@ export interface Config {
   model: string;
   ollamaBaseURL: string;
   defaultDirectory?: string;
+  customSystemPrompt?: string;
+  tokenLimit?: number;
+  requireConfirmation?: boolean;
 }
 
 const DEFAULT_CONFIG: Config = {
@@ -53,6 +56,14 @@ export class ConfigManager {
 
   setOllamaBaseURL(url: string): void {
     this.saveConfig({ ollamaBaseURL: url });
+  }
+
+  setCustomSystemPrompt(prompt: string): void {
+    this.saveConfig({ customSystemPrompt: prompt });
+  }
+
+  clearCustomSystemPrompt(): void {
+    this.saveConfig({ customSystemPrompt: undefined });
   }
 
   getConfigPath(): string {

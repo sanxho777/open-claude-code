@@ -3,6 +3,7 @@ import axios, { AxiosInstance } from 'axios';
 export interface OllamaMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+  images?: string[]; // Base64 encoded images
 }
 
 export interface OllamaResponse {

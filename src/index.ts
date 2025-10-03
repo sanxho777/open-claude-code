@@ -6,6 +6,7 @@ import { Assistant } from './assistant';
 import { ConfigManager } from './config';
 import { OllamaClient } from './ollama';
 import { UI } from './ui';
+import { PluginManager } from './plugins';
 
 const configManager = new ConfigManager();
 
@@ -25,11 +26,12 @@ async function runChat() {
     process.exit(1);
   }
 
-  let assistant = new Assistant({
+  let assistant = await Assistant.create({
     model: config.model,
     ollamaBaseURL: config.ollamaBaseURL,
     workingDirectory: process.cwd(),
     streaming: true,
+    customSystemPrompt: config.customSystemPrompt,
   });
 
   while (true) {
@@ -65,7 +67,75 @@ async function runChat() {
 
     if (trimmedMessage === '/stats') {
       const stats = assistant.getStats();
-      UI.showStats(stats.messageCount, stats.toolUseCount);
+      UI.showStats(stats.messageCount, stats.toolUseCount, stats.estimatedTokens, stats.tokenLimit);
+      continue;
+    }
+
+    if (trimmedMessage.startsWith('/save')) {
+      const parts = trimmedMessage.split(' ');
+      if (parts.length < 2) {
+        UI.showWarning('Usage: /save <conversation-name>');
+        continue;
+      }
+      const name = parts.slice(1).join('-');
+      const result = await assistant.saveConversation(name);
+      if (result.success) {
+        UI.showSuccess(result.message);
+      } else {
+        UI.showError(result.message);
+      }
+      continue;
+    }
+
+    if (trimmedMessage.startsWith('/load')) {
+      const parts = trimmedMessage.split(' ');
+      if (parts.length < 2) {
+        UI.showWarning('Usage: /load <conversation-name>');
+        continue;
+      }
+      const name = parts.slice(1).join('-');
+      const result = await assistant.loadConversation(name);
+      if (result.success) {
+        UI.showSuccess(result.message);
+      } else {
+        UI.showError(result.message);
+      }
+      continue;
+    }
+
+    if (trimmedMessage === '/list' || trimmedMessage === '/conversations') {
+      const conversations = await assistant.listConversations();
+      if (conversations.length === 0) {
+        UI.showWarning('No saved conversations found');
+      } else {
+        UI.drawBox('Saved Conversations', conversations);
+      }
+      continue;
+    }
+
+    if (trimmedMessage === '/plugins') {
+      const pluginManager = new PluginManager();
+      const plugins = pluginManager.getLoadedPlugins();
+      if (plugins.length === 0) {
+        UI.showWarning(`No plugins loaded. Add plugins to: ${pluginManager.getPluginsDirectory()}`);
+      } else {
+        const pluginInfo = plugins.map(p => `${p.name} v${p.version} - ${p.description}`);
+        UI.drawBox('Loaded Plugins', pluginInfo);
+      }
+      continue;
+    }
+
+    if (trimmedMessage.startsWith('/export')) {
+      const parts = trimmedMessage.split(' ');
+      const format = parts[1] || 'markdown';
+      const filename = parts[2] || `conversation-${Date.now()}`;
+
+      const result = await assistant.exportConversation(filename, format as 'markdown' | 'pdf');
+      if (result.success) {
+        UI.showSuccess(result.message);
+      } else {
+        UI.showError(result.message);
+      }
       continue;
     }
 
@@ -99,11 +169,12 @@ async function runChat() {
           config = configManager.getConfig();
 
           // Recreate assistant with new model
-          assistant = new Assistant({
+          assistant = await Assistant.create({
             model: selectedModel,
             ollamaBaseURL: config.ollamaBaseURL,
             workingDirectory: process.cwd(),
             streaming: true,
+            customSystemPrompt: config.customSystemPrompt,
           });
 
           // Recreate ollama client
@@ -122,7 +193,21 @@ async function runChat() {
     // Process regular message
     try {
       UI.formatUserMessage(trimmedMessage);
-      const response = await assistant.chat(trimmedMessage);
+
+      // Create confirmation callback
+      const confirmCallback = async (message: string): Promise<boolean> => {
+        const { confirmed } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'confirmed',
+            message: `⚠️  ${message} - Proceed?`,
+            default: false,
+          },
+        ]);
+        return confirmed;
+      };
+
+      const response = await assistant.chat(trimmedMessage, confirmCallback);
 
       if (response) {
         UI.formatAssistantMessage(response);
@@ -160,11 +245,27 @@ async function setOllamaURL(url: string) {
 
 async function showConfig() {
   const config = configManager.getConfig();
-  UI.drawBox('Configuration', [
+  const configLines = [
     `Model:       ${config.model}`,
     `Ollama URL:  ${config.ollamaBaseURL}`,
     `Config file: ${configManager.getConfigPath()}`,
-  ]);
+  ];
+
+  if (config.customSystemPrompt) {
+    configLines.push(`Custom System Prompt: ${config.customSystemPrompt.substring(0, 50)}...`);
+  }
+
+  UI.drawBox('Configuration', configLines);
+}
+
+async function setSystemPrompt(prompt: string) {
+  configManager.setCustomSystemPrompt(prompt);
+  UI.showSuccess(`Custom system prompt set`);
+}
+
+async function clearSystemPrompt() {
+  configManager.clearCustomSystemPrompt();
+  UI.showSuccess(`Custom system prompt cleared`);
 }
 
 program
@@ -196,5 +297,15 @@ program
   .command('config')
   .description('Show current configuration')
   .action(showConfig);
+
+program
+  .command('set-prompt <prompt>')
+  .description('Set a custom system prompt')
+  .action(setSystemPrompt);
+
+program
+  .command('clear-prompt')
+  .description('Clear custom system prompt')
+  .action(clearSystemPrompt);
 
 program.parse();

@@ -54,7 +54,12 @@ You'll be greeted by the 🦙 llama mascot and a beautiful terminal interface!
 - `/help` - Show help message with all commands
 - `/clear` - Clear conversation history
 - `/model` - Switch between Ollama models (interactive picker)
-- `/stats` - Show conversation statistics
+- `/stats` - Show conversation statistics (including token usage)
+- `/save <name>` - Save current conversation
+- `/load <name>` - Load a saved conversation
+- `/list` or `/conversations` - List all saved conversations
+- `/export [format] [filename]` - Export conversation to markdown or HTML/PDF
+- `/plugins` - List loaded plugins
 - `/exit` or `/quit` - Exit the program
 
 #### CLI commands:
@@ -62,19 +67,51 @@ You'll be greeted by the 🦙 llama mascot and a beautiful terminal interface!
 - `occ models` - List available Ollama models
 - `occ set-model <model>` - Set default model (e.g., `occ set-model qwen2.5-coder:14b`)
 - `occ set-url <url>` - Set Ollama server URL (default: http://localhost:11434)
+- `occ set-prompt <prompt>` - Set custom system prompt
+- `occ clear-prompt` - Clear custom system prompt
 - `occ config` - Show current configuration
 
 ### Available Tools
 
 The assistant can use these tools to help you:
 
+#### File Operations
 - **read_file** - Read file contents
 - **write_file** - Create or overwrite files
 - **edit_file** - Edit files by replacing text
 - **list_files** - List files in a directory
-- **execute_command** - Run bash commands
 - **glob** - Find files matching a pattern
 - **grep** - Search for text in files
+
+#### Git Integration
+- **git_status** - Get git repository status
+- **git_diff** - Show git diff for changes
+- **git_add** - Stage files for commit
+- **git_commit** - Create a git commit
+- **git_branch** - List or create branches
+- **git_checkout** - Switch to a branch
+
+#### Code Analysis
+- **analyze_code** - Get code statistics (lines, functions, classes)
+- **run_linter** - Run ESLint or TypeScript checks
+- **run_tests** - Run tests using Jest/Vitest/Mocha
+- **workspace_files** - List workspace files with filtering
+
+#### Vision & Search
+- **analyze_image** - Analyze images with vision models (requires llava or similar)
+- **web_search** - Search the web using DuckDuckGo
+- **execute_command** - Run bash commands
+
+#### RAG (Retrieval-Augmented Generation)
+- **rag_index_file** - Index a documentation file for semantic search
+- **rag_index_directory** - Index all documentation files in a directory
+- **rag_search** - Search indexed documentation
+- **rag_info** - Get information about the RAG index
+- **rag_clear** - Clear the RAG index
+
+#### Plugin System
+- Custom tools can be added via the plugin system at `~/.occ-plugins/`
+- See example plugin for reference
 
 ## Recommended Models
 
@@ -127,25 +164,98 @@ You: /model
 6. **🎯 Smart Tool Detection**: Automatically detects when to use tools
 7. **🦙 Personality**: Fun llama mascot and friendly interface
 
+## Recent Enhancements ✨
+
+### Latest Update (v2.0)
+- ✅ **Plugin system** - Create custom tools via plugin system (`~/.occ-plugins/`)
+- ✅ **Conversation export** - Export to markdown or HTML/PDF format
+- ✅ **Web search** - Integrated DuckDuckGo web search
+- ✅ **RAG support** - Index and search documentation/codebases
+- ✅ **Token tracking** - Monitor and limit token usage
+- ✅ **Interactive confirmation** - Safety prompts for dangerous operations
+
+### Previous Updates
+- ✅ **Vision model support** - Analyze images with vision-capable models (llava, etc.)
+- ✅ **Conversation save/load** - Save and restore conversation sessions
+- ✅ **Custom system prompts** - Configure personalized assistant behavior
+- ✅ **Workspace awareness** - Multi-file context and workspace file listing
+- ✅ **Git integration** - Full git support (status, diff, commit, branch, etc.)
+- ✅ **Code analysis & linting** - ESLint, TypeScript, test runner integration
+
+## Advanced Features
+
+### Plugin System
+
+Create custom tools by adding plugins to `~/.occ-plugins/`:
+
+```javascript
+// ~/.occ-plugins/my-plugin/manifest.json
+{
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "description": "My custom plugin",
+  "tools": [{
+    "name": "my_tool",
+    "description": "Does something useful",
+    "parameters": {
+      "input": "string - input parameter"
+    },
+    "handler": "handler.js"
+  }]
+}
+
+// ~/.occ-plugins/my-plugin/handler.js
+module.exports = async function(args) {
+  return {
+    success: true,
+    output: `Processed: ${args.input}`
+  };
+};
+```
+
+### RAG (Retrieval-Augmented Generation)
+
+Index and search your documentation:
+
+```
+You: Index all markdown files in the docs folder
+🦙: <uses rag_index_directory tool>
+✓ Successfully indexed 42 files
+
+You: Search for information about authentication
+🦙: <uses rag_search tool>
+Found 5 relevant sections about authentication...
+```
+
+### Token Limits & Confirmation
+
+Configure safety features via CLI or config file:
+
+```bash
+# Set token limit
+echo '{"tokenLimit": 50000, "requireConfirmation": true}' > ~/.occ-config.json
+
+# Now dangerous commands will require confirmation
+You: Delete all node_modules folders
+🦙: ⚠️ Execute command: rm -rf node_modules - Proceed? (y/N)
+```
+
 ## Future Enhancement Ideas
 
 Want to contribute? Here are some ideas for improvements:
 
 ### High Priority
-- [ ] Add support for vision models (analyze images/screenshots)
-- [ ] Implement conversation save/load functionality
-- [ ] Add support for custom system prompts
-- [ ] Multi-file context (workspace awareness)
-- [ ] Git integration (commit, branch, status)
-- [ ] Code analysis and linting integration
+- [ ] Multi-turn image analysis conversations
+- [ ] Better test result parsing and presentation
+- [ ] Embeddings-based RAG (currently uses TF search)
+- [ ] Streaming web search results
 
 ### Medium Priority
-- [ ] Plugin system for custom tools
-- [ ] Export conversations to markdown/PDF
-- [ ] Web search integration (local Searxng/etc)
-- [ ] RAG support (load documentation, codebases)
-- [ ] Token usage tracking and limits
-- [ ] Interactive code execution with confirmation
+- [ ] Vector embeddings for better RAG search
+- [ ] Diff view for file edits before applying
+- [ ] Undo/redo for file operations
+- [ ] Plugin marketplace/discovery
+- [ ] Ollama model download/management from CLI
 
 ### Nice to Have
 - [ ] Multiple conversation threads

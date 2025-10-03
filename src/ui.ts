@@ -53,11 +53,16 @@ export class UI {
 
   static showHelp(): void {
     console.log(chalk.gray('  Commands:'));
-    console.log(chalk.yellow('    /clear  '), chalk.gray('- Clear conversation history'));
-    console.log(chalk.yellow('    /model  '), chalk.gray('- Switch between Ollama models'));
-    console.log(chalk.yellow('    /stats  '), chalk.gray('- Show conversation statistics'));
-    console.log(chalk.yellow('    /help   '), chalk.gray('- Show this help message'));
-    console.log(chalk.yellow('    /exit   '), chalk.gray('- Exit the program'));
+    console.log(chalk.yellow('    /clear              '), chalk.gray('- Clear conversation history'));
+    console.log(chalk.yellow('    /model              '), chalk.gray('- Switch between Ollama models'));
+    console.log(chalk.yellow('    /stats              '), chalk.gray('- Show conversation statistics'));
+    console.log(chalk.yellow('    /save <name>        '), chalk.gray('- Save conversation'));
+    console.log(chalk.yellow('    /load <name>        '), chalk.gray('- Load saved conversation'));
+    console.log(chalk.yellow('    /list               '), chalk.gray('- List saved conversations'));
+    console.log(chalk.yellow('    /export [format]    '), chalk.gray('- Export conversation (markdown/pdf)'));
+    console.log(chalk.yellow('    /plugins            '), chalk.gray('- List loaded plugins'));
+    console.log(chalk.yellow('    /help               '), chalk.gray('- Show this help message'));
+    console.log(chalk.yellow('    /exit               '), chalk.gray('- Exit the program'));
     console.log();
   }
 
@@ -120,12 +125,18 @@ export class UI {
     console.log(colors[status](`  ${icons[status]} ${messages[status]}`));
   }
 
-  static showStats(messageCount: number, toolUseCount: number): void {
+  static showStats(messageCount: number, toolUseCount: number, estimatedTokens: number, tokenLimit?: number): void {
     console.log(chalk.gray('━'.repeat(60)));
     console.log(chalk.bold('  Conversation Statistics'));
     console.log(chalk.gray('━'.repeat(60)));
-    console.log(chalk.blue('  Messages:  '), chalk.white(messageCount));
-    console.log(chalk.blue('  Tool uses: '), chalk.white(toolUseCount));
+    console.log(chalk.blue('  Messages:       '), chalk.white(messageCount));
+    console.log(chalk.blue('  Tool uses:      '), chalk.white(toolUseCount));
+    console.log(chalk.blue('  Est. tokens:    '), chalk.white(estimatedTokens));
+    if (tokenLimit) {
+      const percentage = ((estimatedTokens / tokenLimit) * 100).toFixed(1);
+      const color = estimatedTokens > tokenLimit * 0.9 ? chalk.red : estimatedTokens > tokenLimit * 0.7 ? chalk.yellow : chalk.green;
+      console.log(chalk.blue('  Token limit:    '), color(`${estimatedTokens}/${tokenLimit} (${percentage}%)`));
+    }
     console.log(chalk.gray('━'.repeat(60)));
     console.log();
   }
