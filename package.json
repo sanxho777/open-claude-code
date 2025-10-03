@@ -1,0 +1,35 @@
+{
+  "name": "open-claude-code",
+  "version": "1.0.0",
+  "description": "A Claude Code-like terminal assistant powered by Ollama",
+  "main": "dist/index.js",
+  "bin": {
+    "occ": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "keywords": ["cli", "assistant", "ollama", "coding"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "chalk": "^4.1.2",
+    "cli-boxes": "^3.0.0",
+    "commander": "^11.1.0",
+    "inquirer": "^8.2.5",
+    "marked": "^9.1.0",
+    "marked-terminal": "^6.0.0",
+    "ora": "^5.4.1",
+    "strip-ansi": "^6.0.1",
+    "terminal-kit": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^8.2.5",
+    "@types/marked-terminal": "^3.1.3",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}
