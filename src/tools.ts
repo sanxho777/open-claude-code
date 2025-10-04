@@ -4,6 +4,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { PluginManager } from './plugins';
 import { SimpleRAG } from './rag';
+import { chromium, Browser, Page } from 'playwright';
 
 const execAsync = promisify(exec);
 
@@ -16,6 +17,8 @@ export interface ToolResult {
 export class ToolSystem {
   private workingDirectory: string;
   private rag: SimpleRAG;
+  private browser: Browser | null = null;
+  private page: Page | null = null;
 
   constructor(workingDirectory: string = process.cwd()) {
     this.workingDirectory = workingDirectory;
@@ -517,6 +520,246 @@ export class ToolSystem {
     }
   }
 
+  async browserLaunch(headless: boolean = false): Promise<ToolResult> {
+    try {
+      if (this.browser) {
+        return {
+          success: true,
+          output: 'Browser already launched',
+        };
+      }
+
+      this.browser = await chromium.launch({ headless });
+      this.page = await this.browser.newPage();
+
+      return {
+        success: true,
+        output: `Browser launched in ${headless ? 'headless' : 'headed'} mode`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to launch browser',
+      };
+    }
+  }
+
+  async browserNavigate(url: string): Promise<ToolResult> {
+    try {
+      if (!this.browser || !this.page) {
+        const launchResult = await this.browserLaunch();
+        if (!launchResult.success) {
+          return launchResult;
+        }
+      }
+
+      await this.page!.goto(url, { waitUntil: 'networkidle' });
+
+      return {
+        success: true,
+        output: `Navigated to: ${url}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to navigate',
+      };
+    }
+  }
+
+  async browserGetContent(): Promise<ToolResult> {
+    try {
+      if (!this.page) {
+        return {
+          success: false,
+          error: 'Browser not launched. Use browser_launch first.',
+        };
+      }
+
+      const content = await this.page.content();
+
+      return {
+        success: true,
+        output: content,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get content',
+      };
+    }
+  }
+
+  async browserGetText(): Promise<ToolResult> {
+    try {
+      if (!this.page) {
+        return {
+          success: false,
+          error: 'Browser not launched. Use browser_launch first.',
+        };
+      }
+
+      const text = await this.page.innerText('body');
+
+      return {
+        success: true,
+        output: text,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get text',
+      };
+    }
+  }
+
+  async browserScreenshot(filePath: string): Promise<ToolResult> {
+    try {
+      if (!this.page) {
+        return {
+          success: false,
+          error: 'Browser not launched. Use browser_launch first.',
+        };
+      }
+
+      const fullPath = path.resolve(this.workingDirectory, filePath);
+      const dir = path.dirname(fullPath);
+
+      if (!fs.existsSync(dir)) {
+        await fs.promises.mkdir(dir, { recursive: true });
+      }
+
+      await this.page.screenshot({ path: fullPath, fullPage: true });
+
+      return {
+        success: true,
+        output: `Screenshot saved to: ${filePath}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to take screenshot',
+      };
+    }
+  }
+
+  async browserClick(selector: string): Promise<ToolResult> {
+    try {
+      if (!this.page) {
+        return {
+          success: false,
+          error: 'Browser not launched. Use browser_launch first.',
+        };
+      }
+
+      await this.page.click(selector);
+
+      return {
+        success: true,
+        output: `Clicked element: ${selector}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to click element',
+      };
+    }
+  }
+
+  async browserType(selector: string, text: string): Promise<ToolResult> {
+    try {
+      if (!this.page) {
+        return {
+          success: false,
+          error: 'Browser not launched. Use browser_launch first.',
+        };
+      }
+
+      await this.page.fill(selector, text);
+
+      return {
+        success: true,
+        output: `Typed text into: ${selector}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to type text',
+      };
+    }
+  }
+
+  async browserWaitForSelector(selector: string, timeout: number = 30000): Promise<ToolResult> {
+    try {
+      if (!this.page) {
+        return {
+          success: false,
+          error: 'Browser not launched. Use browser_launch first.',
+        };
+      }
+
+      await this.page.waitForSelector(selector, { timeout });
+
+      return {
+        success: true,
+        output: `Element found: ${selector}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to find element',
+      };
+    }
+  }
+
+  async browserEvaluate(script: string): Promise<ToolResult> {
+    try {
+      if (!this.page) {
+        return {
+          success: false,
+          error: 'Browser not launched. Use browser_launch first.',
+        };
+      }
+
+      const result = await this.page.evaluate(script);
+
+      return {
+        success: true,
+        output: JSON.stringify(result, null, 2),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to evaluate script',
+      };
+    }
+  }
+
+  async browserClose(): Promise<ToolResult> {
+    try {
+      if (!this.browser) {
+        return {
+          success: true,
+          output: 'Browser already closed',
+        };
+      }
+
+      await this.browser.close();
+      this.browser = null;
+      this.page = null;
+
+      return {
+        success: true,
+        output: 'Browser closed',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to close browser',
+      };
+    }
+  }
+
   getWorkingDirectory(): string {
     return this.workingDirectory;
   }
@@ -725,6 +968,82 @@ export async function getAvailableTools(toolSystem: ToolSystem): Promise<Tool[]>
       description: 'Clear the RAG index',
       parameters: {},
       execute: async () => toolSystem.ragClear(),
+    },
+    {
+      name: 'browser_launch',
+      description: 'Launch a browser instance for automation (uses Playwright)',
+      parameters: {
+        headless: 'boolean - run in headless mode (default: false)',
+      },
+      execute: async (args) => toolSystem.browserLaunch(args.headless ?? false),
+    },
+    {
+      name: 'browser_navigate',
+      description: 'Navigate to a URL in the browser',
+      parameters: {
+        url: 'string - URL to navigate to',
+      },
+      execute: async (args) => toolSystem.browserNavigate(args.url),
+    },
+    {
+      name: 'browser_get_content',
+      description: 'Get the HTML content of the current page',
+      parameters: {},
+      execute: async () => toolSystem.browserGetContent(),
+    },
+    {
+      name: 'browser_get_text',
+      description: 'Get the text content of the current page',
+      parameters: {},
+      execute: async () => toolSystem.browserGetText(),
+    },
+    {
+      name: 'browser_screenshot',
+      description: 'Take a screenshot of the current page',
+      parameters: {
+        file_path: 'string - path to save the screenshot',
+      },
+      execute: async (args) => toolSystem.browserScreenshot(args.file_path),
+    },
+    {
+      name: 'browser_click',
+      description: 'Click an element on the page using a CSS selector',
+      parameters: {
+        selector: 'string - CSS selector of the element to click',
+      },
+      execute: async (args) => toolSystem.browserClick(args.selector),
+    },
+    {
+      name: 'browser_type',
+      description: 'Type text into an input field using a CSS selector',
+      parameters: {
+        selector: 'string - CSS selector of the input field',
+        text: 'string - text to type',
+      },
+      execute: async (args) => toolSystem.browserType(args.selector, args.text),
+    },
+    {
+      name: 'browser_wait_for_selector',
+      description: 'Wait for an element to appear on the page',
+      parameters: {
+        selector: 'string - CSS selector to wait for',
+        timeout: 'number - timeout in milliseconds (default: 30000)',
+      },
+      execute: async (args) => toolSystem.browserWaitForSelector(args.selector, args.timeout || 30000),
+    },
+    {
+      name: 'browser_evaluate',
+      description: 'Execute JavaScript code in the browser context',
+      parameters: {
+        script: 'string - JavaScript code to execute',
+      },
+      execute: async (args) => toolSystem.browserEvaluate(args.script),
+    },
+    {
+      name: 'browser_close',
+      description: 'Close the browser instance',
+      parameters: {},
+      execute: async () => toolSystem.browserClose(),
     },
   ];
 

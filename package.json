@@ -11,10 +11,16 @@
     "dev": "tsc --watch",
     "start": "node dist/index.js"
   },
-  "keywords": ["cli", "assistant", "ollama", "coding"],
+  "keywords": [
+    "cli",
+    "assistant",
+    "ollama",
+    "coding"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@playwright/browser-chromium": "^1.55.1",
     "axios": "^1.6.0",
     "chalk": "^4.1.2",
     "cli-boxes": "^3.0.0",
@@ -23,6 +29,7 @@
     "marked": "^9.1.0",
     "marked-terminal": "^6.0.0",
     "ora": "^5.4.1",
+    "playwright": "^1.55.1",
     "strip-ansi": "^6.0.1",
     "terminal-kit": "^3.0.1"
   },
